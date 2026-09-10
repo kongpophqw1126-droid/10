@@ -1,0 +1,74 @@
+local Players = game:GetService("Players")
+
+local DataStoreService = game:GetService("DataStoreService")
+
+local Data = DataStoreService:GetDataStore("BloxStyleData_V1")
+
+local MAX_LEVEL = 2800
+
+local function expNeeded(level)
+
+	return math.floor(100 + (level ^ 1.35) * 20)
+
+end
+
+Players.PlayerAdded:Connect(function(player)
+
+	local data
+	pcall(function()
+		data = Data:GetAsync("Player_" .. player.UserId)
+	end)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+	local Level = Instance.new("IntValue")
+	Level.Name = "Level"
+	Level.Value = (data and data.Level) or 1
+	Level.Parent = leaderstats
+	local Beli = Instance.new("IntValue")
+	Beli.Name = "Beli"
+	Beli.Value = (data and data.Beli) or 0
+	Beli.Parent = leaderstats
+	local EXP = Instance.new("IntValue")
+	EXP.Name = "EXP"
+	EXP.Value = (data and data.EXP) or 0
+	EXP.Parent = player
+	-- จำกัด Level สูงสุด 2800
+	Level.Changed:Connect(function()
+		if Level.Value > MAX_LEVEL then
+			Level.Value = MAX_LEVEL
+		end
+	end)
+	-- ระบบเพิ่ม EXP
+	EXP.Changed:Connect(function()
+		while Level.Value < MAX_LEVEL do
+			local needed = expNeeded(Level.Value)
+			if EXP.Value < needed then
+				break
+			end
+			EXP.Value -= needed
+			Level.Value += 1
+			-- ได้ Beli เมื่อเลเวลอัป
+			Beli.Value += Level.Value * 100
+		end
+	end)
+
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local EXP = player:FindFirstChild("EXP")
+	if not leaderstats or not EXP then
+		return
+	end
+	local data = {
+		Level = leaderstats.Level.Value,
+		Beli = leaderstats.Beli.Value,
+		EXP = EXP.Value
+	}
+	pcall(function()
+		Data:SetAsync("Player_" .. player.UserId, data)
+	end)
+
+end)
